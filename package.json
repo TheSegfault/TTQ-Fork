@@ -1,0 +1,11 @@
+{
+  "name": "travian-task-queue",
+  "private": true,
+  "version": "2.1.8",
+  "description": "Development tooling for the Travian Task Queue userscript.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "watch": "node scripts/watch.mjs",
+    "check": "node scripts/build.mjs --check"
+  }
+}
