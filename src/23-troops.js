@@ -182,6 +182,11 @@ function scheduleAttack(e) {
 		printMsg(aLangStrings[17] , true);
 		return false;
 	}
+	if (ttqIsSoloT1Unit(aTroops)) {
+		_log(1, "Troop safety> Refusing to schedule one Tier-1 unit alone.");
+		printMsg("Blocked: TTQ will not send one Tier-1 unit alone.", true);
+		return false;
+	}
 
 	var xpathRes = $gn("redeployHero");
 	aTroops[17] = xpathRes.length > 0 && xpathRes[0].checked == true ? 1: 0;
@@ -193,6 +198,7 @@ function scheduleAttack(e) {
 
 function attack(aTask) {
 	_log(1,"Begin attack("+aTask+")");
+	if (ttqBlockSoloT1Attack(aTask)) return false;
 	printMsg(aLangStrings[6] + " > 1<br><br>" + getTaskDetails(aTask));
 	if(aTask[5] != 'null') {  //multiple villages
 		//we need to switch village (while at the same time, setting the target destination)

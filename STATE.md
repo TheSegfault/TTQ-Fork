@@ -9,6 +9,8 @@ Make TTQ safe and pleasant to maintain without changing its userscript behavior.
 - Established `src/` as the editable source tree.
 - Added a dependency-free build and watch workflow.
 - Kept the Tampermonkey deliverable as a single checked-in file.
+- Blocked scheduling and dispatching attacks that contain only one Tier-1 unit.
+- Added an always-visible control that restores a lost task queue to the viewport center.
 
 ## Next opportunities
 

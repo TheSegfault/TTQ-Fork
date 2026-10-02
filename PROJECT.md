@@ -10,6 +10,7 @@ TTQ is a Tampermonkey userscript for Travian 4 that schedules delayed constructi
 - It runs in Travian pages, where DOM structure and internal endpoints are external dependencies that can change without notice.
 - Existing saved Tampermonkey values and scheduled tasks are user data. Preserve their keys and serialized shapes unless a migration is explicitly implemented.
 - The code is legacy browser JavaScript. Improve it incrementally, with compatibility and observable behavior ahead of stylistic modernization.
+- Scheduled attacks must never send exactly one Tier-1 unit without another unit or hero as an escort.
 
 ## Definition of done
 

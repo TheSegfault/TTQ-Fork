@@ -866,10 +866,10 @@ cssStyle += "#ttq_tasklist .ttq_farm_group{margin:5px 8px}#ttq_tasklist .ttq_far
 cssStyle += "#ttq_tasklist .ttq_simple_task{margin:5px 8px;padding:8px 10px;background:white;border:1px solid #cfddd3;border-radius:7px;gap:10px} .ttq_simple_task .ttq_wave_name{display:flex;flex-wrap:wrap;align-items:baseline;gap:5px 10px}.ttq_task_kind{font-size:12px;color:#285c3d}.ttq_task_subject{font-size:12px}#ttq_tasklist .ttq_simple_countdown{font-size:11px;margin:0;max-width:170px;text-align:right}#ttq_tasklist .ttq_simple_task .ttq_time_village_wrapper{font-size:12px}";
 cssStyle += "#ttq_tasklist .ttq_remove_all{border:1px solid #e0bcbc;border-radius:5px;background:#fff7f7;color:#9b3434;font:11px Arial,sans-serif;padding:4px 7px;cursor:pointer;white-space:nowrap}#ttq_tasklist .ttq_remove_all:hover{background:#fbe3e3}#ttq_tasklist .ttq_remove_all:focus-visible{outline:2px solid #9b3434;outline-offset:2px}";
 cssStyle += "#ttq_tasklist{resize:both;overflow:auto;box-sizing:border-box;min-width:300px;min-height:140px;max-width:calc(100vw - 24px);max-height:calc(100vh - 24px);padding-bottom:12px}#ttq_tasklist.ttq_minimized{resize:none;min-width:0;min-height:0;padding-bottom:0}#ttq_tasklist::-webkit-resizer{background:linear-gradient(135deg,transparent 45%,#527b60 46%,#527b60 55%,transparent 56%,transparent 65%,#527b60 66%,#527b60 75%,transparent 76%)}";
+cssStyle += "#ttq_center_queue{position:fixed;right:16px;bottom:16px;z-index:504;border:1px solid #1b4930;border-radius:6px;background:#285c3d;color:#f7fbf8;padding:8px 12px;font:600 12px/1.2 Arial,sans-serif;box-shadow:0 3px 12px #0003;cursor:pointer}#ttq_center_queue:hover{background:#1f4d32}#ttq_center_queue:active{background:#173d28}#ttq_center_queue:focus-visible{outline:2px solid #8dd39a;outline-offset:3px}";
 TTQ_addStyle(cssStyle);
 }
 // *** End of Initialization and Globals ***
-
 // *** Begin TTQ Core Functions ***
 /**************************************************************************
  * Performs some initial checkings on conditions that have to be met to run the script
@@ -878,6 +878,17 @@ TTQ_addStyle(cssStyle);
 
 function ttqTaskIsDeprecated(aTask) {
 	return Date.now() / 1000 - Number(aTask[1]) > MAX_TASK_LATENESS_SECONDS;
+}
+
+function ttqBlockSoloT1Attack(aTask) {
+	if (!aTask || aTask[0] !== "2" || !ttqIsSoloT1Unit(String(aTask[3]).split("_"))) return false;
+
+	var message = "Blocked: TTQ will not send one Tier-1 unit alone.";
+	_log(1, "Troop safety> " + message);
+	printMsg(message + "<br><br>" + getTaskDetails(aTask), true);
+	addToHistory(aTask, false, message);
+	ttqBusyTask = 0;
+	return true;
 }
 
 function checkSetTasks() {
@@ -995,6 +1006,54 @@ function ttqEnableQueueResize(list) {
     });
     list.ttqResizeObserver.observe(list);
 }
+
+function ttqCenterTaskList() {
+	var taskList = $id("ttq_tasklist");
+	if (!taskList) return false;
+
+	if (taskList.classList.contains("ttq_minimized")) {
+		taskList.classList.remove("ttq_minimized");
+		taskList.style.height = "";
+		taskList.style.width = "";
+		taskList.style.overflow = "auto";
+		setOption("LIST_MINIMIZED", false);
+		ttqRestoreQueueSize(taskList);
+	}
+
+	var margin = 12;
+	var scrollX = window.scrollX || window.pageXOffset || 0;
+	var scrollY = window.scrollY || window.pageYOffset || 0;
+	var maxLeft = Math.max(scrollX + margin, scrollX + window.innerWidth - taskList.offsetWidth - margin);
+	var maxTop = Math.max(scrollY + margin, scrollY + window.innerHeight - taskList.offsetHeight - margin);
+	var left = Math.min(maxLeft, Math.max(scrollX + margin, Math.round(scrollX + (window.innerWidth - taskList.offsetWidth) / 2)));
+	var top = Math.min(maxTop, Math.max(scrollY + margin, Math.round(scrollY + (window.innerHeight - taskList.offsetHeight) / 2)));
+
+	taskList.style.left = left + "px";
+	taskList.style.top = top + "px";
+	setOption("LIST_POSITION", top + "px_" + left + "px");
+	return true;
+}
+
+function ttqEnsureQueueCenterButton() {
+	var centerButton = $id("ttq_center_queue");
+	if (centerButton) return;
+
+	centerButton = document.createElement("button");
+	centerButton.id = "ttq_center_queue";
+	centerButton.type = "button";
+	centerButton.textContent = "Center queue";
+	centerButton.title = "Move the task queue to the middle of the screen";
+	ttqAddEventListener(centerButton, "click", function() {
+		ttqCenterTaskList();
+	}, false);
+	document.body.appendChild(centerButton);
+}
+
+function ttqRemoveQueueCenterButton() {
+	var centerButton = $id("ttq_center_queue");
+	if (centerButton) centerButton.parentNode.removeChild(centerButton);
+}
+
 function refreshTaskList(aTasks) {
 	_log(3,"Begin 	()");
 	// Remove old task list
@@ -1002,7 +1061,10 @@ function refreshTaskList(aTasks) {
 	if(oOldTaskList) { if (oOldTaskList.ttqResizeObserver) oOldTaskList.ttqResizeObserver.disconnect(); document.body.removeChild(oOldTaskList); };
 
 	//if there are no tasks set, return
-	if(!aTasks || aTasks.length < 1) return;
+	if(!aTasks || aTasks.length < 1) {
+		ttqRemoveQueueCenterButton();
+		return;
+	}
 	var sTime = "";
 	//Create new tasklist
 	var oTaskList = document.createElement('div');
@@ -1026,6 +1088,7 @@ function refreshTaskList(aTasks) {
 	document.body.appendChild(oTaskList);
 
     ttqEnableQueueResize(oTaskList);
+	ttqEnsureQueueCenterButton();
 	makeDraggable($id('ttq_draghandle'));
 
 	//get the server time offset once
@@ -1483,6 +1546,7 @@ function triggerTask(aTask) {
 			upgradebuild(aTask);
 			break;
 		case "2": //send attack
+			if (ttqBlockSoloT1Attack(aTask)) return false;
 			attack(aTask);
 			break;
 		case "3": //research
@@ -2337,6 +2401,11 @@ function scheduleAttack(e) {
 		printMsg(aLangStrings[17] , true);
 		return false;
 	}
+	if (ttqIsSoloT1Unit(aTroops)) {
+		_log(1, "Troop safety> Refusing to schedule one Tier-1 unit alone.");
+		printMsg("Blocked: TTQ will not send one Tier-1 unit alone.", true);
+		return false;
+	}
 
 	var xpathRes = $gn("redeployHero");
 	aTroops[17] = xpathRes.length > 0 && xpathRes[0].checked == true ? 1: 0;
@@ -2348,6 +2417,7 @@ function scheduleAttack(e) {
 
 function attack(aTask) {
 	_log(1,"Begin attack("+aTask+")");
+	if (ttqBlockSoloT1Attack(aTask)) return false;
 	printMsg(aLangStrings[6] + " > 1<br><br>" + getTaskDetails(aTask));
 	if(aTask[5] != 'null') {  //multiple villages
 		//we need to switch village (while at the same time, setting the target destination)
@@ -4083,6 +4153,14 @@ function onlySpies(aTroops) { // @return true if there are only spies, false if 
 		}
 	}
 	_log(3, "This is a spying mission.");
+	return true;
+}
+
+function ttqIsSoloT1Unit(troops) {
+	if (!troops || Number(troops[1]) !== 1) return false;
+	for (var i = 2; i <= 11; ++i) {
+		if (Number(troops[i]) > 0) return false;
+	}
 	return true;
 }
 

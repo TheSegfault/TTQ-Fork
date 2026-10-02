@@ -18,6 +18,14 @@ function onlySpies(aTroops) { // @return true if there are only spies, false if 
 	return true;
 }
 
+function ttqIsSoloT1Unit(troops) {
+	if (!troops || Number(troops[1]) !== 1) return false;
+	for (var i = 2; i <= 11; ++i) {
+		if (Number(troops[i]) > 0) return false;
+	}
+	return true;
+}
+
 function switchActiveVillage(did) {
 	_log(2, "Switching your village back to " +did);
 	if ( Number.isInteger(did) && did > 0 ) get(fullName+"dorf1.php?newdid="+did, null, null);

@@ -8,6 +8,17 @@ function ttqTaskIsDeprecated(aTask) {
 	return Date.now() / 1000 - Number(aTask[1]) > MAX_TASK_LATENESS_SECONDS;
 }
 
+function ttqBlockSoloT1Attack(aTask) {
+	if (!aTask || aTask[0] !== "2" || !ttqIsSoloT1Unit(String(aTask[3]).split("_"))) return false;
+
+	var message = "Blocked: TTQ will not send one Tier-1 unit alone.";
+	_log(1, "Troop safety> " + message);
+	printMsg(message + "<br><br>" + getTaskDetails(aTask), true);
+	addToHistory(aTask, false, message);
+	ttqBusyTask = 0;
+	return true;
+}
+
 function checkSetTasks() {
 	_log(1, "CheckSetTasks> Begin. (tab ID = " + myID + ")");
 	var aThisTask, aTasks = getVariable("TTQ_TASKS");
@@ -123,6 +134,54 @@ function ttqEnableQueueResize(list) {
     });
     list.ttqResizeObserver.observe(list);
 }
+
+function ttqCenterTaskList() {
+	var taskList = $id("ttq_tasklist");
+	if (!taskList) return false;
+
+	if (taskList.classList.contains("ttq_minimized")) {
+		taskList.classList.remove("ttq_minimized");
+		taskList.style.height = "";
+		taskList.style.width = "";
+		taskList.style.overflow = "auto";
+		setOption("LIST_MINIMIZED", false);
+		ttqRestoreQueueSize(taskList);
+	}
+
+	var margin = 12;
+	var scrollX = window.scrollX || window.pageXOffset || 0;
+	var scrollY = window.scrollY || window.pageYOffset || 0;
+	var maxLeft = Math.max(scrollX + margin, scrollX + window.innerWidth - taskList.offsetWidth - margin);
+	var maxTop = Math.max(scrollY + margin, scrollY + window.innerHeight - taskList.offsetHeight - margin);
+	var left = Math.min(maxLeft, Math.max(scrollX + margin, Math.round(scrollX + (window.innerWidth - taskList.offsetWidth) / 2)));
+	var top = Math.min(maxTop, Math.max(scrollY + margin, Math.round(scrollY + (window.innerHeight - taskList.offsetHeight) / 2)));
+
+	taskList.style.left = left + "px";
+	taskList.style.top = top + "px";
+	setOption("LIST_POSITION", top + "px_" + left + "px");
+	return true;
+}
+
+function ttqEnsureQueueCenterButton() {
+	var centerButton = $id("ttq_center_queue");
+	if (centerButton) return;
+
+	centerButton = document.createElement("button");
+	centerButton.id = "ttq_center_queue";
+	centerButton.type = "button";
+	centerButton.textContent = "Center queue";
+	centerButton.title = "Move the task queue to the middle of the screen";
+	ttqAddEventListener(centerButton, "click", function() {
+		ttqCenterTaskList();
+	}, false);
+	document.body.appendChild(centerButton);
+}
+
+function ttqRemoveQueueCenterButton() {
+	var centerButton = $id("ttq_center_queue");
+	if (centerButton) centerButton.parentNode.removeChild(centerButton);
+}
+
 function refreshTaskList(aTasks) {
 	_log(3,"Begin 	()");
 	// Remove old task list
@@ -130,7 +189,10 @@ function refreshTaskList(aTasks) {
 	if(oOldTaskList) { if (oOldTaskList.ttqResizeObserver) oOldTaskList.ttqResizeObserver.disconnect(); document.body.removeChild(oOldTaskList); };
 
 	//if there are no tasks set, return
-	if(!aTasks || aTasks.length < 1) return;
+	if(!aTasks || aTasks.length < 1) {
+		ttqRemoveQueueCenterButton();
+		return;
+	}
 	var sTime = "";
 	//Create new tasklist
 	var oTaskList = document.createElement('div');
@@ -154,6 +216,7 @@ function refreshTaskList(aTasks) {
 	document.body.appendChild(oTaskList);
 
     ttqEnableQueueResize(oTaskList);
+	ttqEnsureQueueCenterButton();
 	makeDraggable($id('ttq_draghandle'));
 
 	//get the server time offset once
@@ -611,6 +674,7 @@ function triggerTask(aTask) {
 			upgradebuild(aTask);
 			break;
 		case "2": //send attack
+			if (ttqBlockSoloT1Attack(aTask)) return false;
 			attack(aTask);
 			break;
 		case "3": //research
